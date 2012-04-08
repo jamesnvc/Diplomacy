@@ -398,7 +398,11 @@ io.sockets.on('connection', function (socket) {
     var login = function(doc){
       user_sockets[doc._id] = socket;
       socket.set('user_id', doc._id, function(){
+        if (cb !== null) {
         cb(null,doc);
+        } else {
+          socket.emit('login', doc);
+        }
       });
     }
 
@@ -652,3 +656,4 @@ var port = process.env.PORT || 3000;
 app.listen(port, function() {
   console.log("Listening on " + port);
 });
+
