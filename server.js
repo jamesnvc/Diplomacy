@@ -151,15 +151,32 @@ io.sockets.on('connection', function (socket) {
   //   socket.broadcast.emit('chat:users',users);
   // });
 
-  socket.on('game:addbot', function(gameID, cb){
+  socket.on('game:addbot', function(gameID, power){
     console.log('Adding bot to game ', gameID);
     model["game"].findOne({'_id': gameID}, function(err, game){
-        model["user"].find({'name': 'Diplobot'}, function(err, docs){
-          if (docs) {
-            var bot = docs[0];
-          user_sockets[bot._id].emit('game:join', {'gameId': game._id});
-          }
+      model["user"].findOne({'name': 'Diplobot'}, function(err, bot){
+        user_sockets[bot._id].emit('game:join',
+          {'gameId': game._id, 'nationality': power});
+      });
+    });
+  });
+
+  socket.on('bot:joingame', function(args) {
+    var player = new model["player"]({
+        user_id: args.botId,
+        country: args.power
+      });
+    player.save(function(err) {
+      console.log("Created player ", player);
+      if (err) {
+        console.log("Error creating player:", err);
+      } else {
+        model["game"].findOne({'_id': args.gameId}, function(err, game) {
+          console.log("Found game ", game);
+          game.players.push(player.id);
+          game.save(function(err) { console.log("saved game"); });
         });
+      }
     });
   });
 
@@ -676,6 +693,7 @@ var port = process.env.PORT || 3000;
 app.listen(port, function() {
   console.log("Listening on " + port);
 });
+
 
 
 

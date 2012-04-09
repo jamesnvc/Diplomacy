@@ -120,7 +120,7 @@ define(['scripts/client/bootstrap.js'], function(){
       if (undefined == this.game.get('players').find(function(player){player.get('power') == power})) {
         // Add bot to the game
         console.log('Adding bot to ', this.game);
-        window.socket.emit('game:addbot', this.game.id);
+        window.socket.emit('game:addbot', this.game.id, power);
       }
       this.render();
     }
