@@ -150,6 +150,16 @@ io.sockets.on('connection', function (socket) {
   //   socket.emit('chat:users',users);
   //   socket.broadcast.emit('chat:users',users);
   // });
+
+  socket.on('game:addbot', function(gameID, cb){
+    console.log('Adding bot to game ', game._id);
+    model["game"].findOne({'_id': gameID}, function(err, game){
+        model["player"].find({'name': 'Diplobot'}, function(err, bot){
+          user_sockets[bot._id].emit('game:join', {'gameId': game._id});
+        });
+    });
+  });
+
   socket.on('game:resolve', function(gameID, cb){
     console.log("Game resolving");
     //get units for gameID from mongoose
@@ -451,6 +461,13 @@ io.sockets.on('connection', function (socket) {
     //  Error Handling (record not found, collectio not found, args data not found)
     //  Automated schema loading from models folder
     //  Unit tests
+    //
+
+    if (callback === null) {
+      callback = function(err, docs) {
+        socket.emit('db:response', docs);
+      }
+    }
 
     var update_other = function(user_id, other_id){
         if (user_id != other_id){
@@ -656,4 +673,5 @@ var port = process.env.PORT || 3000;
 app.listen(port, function() {
   console.log("Listening on " + port);
 });
+
 
