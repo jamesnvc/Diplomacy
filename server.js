@@ -152,10 +152,13 @@ io.sockets.on('connection', function (socket) {
   // });
 
   socket.on('game:addbot', function(gameID, cb){
-    console.log('Adding bot to game ', game._id);
+    console.log('Adding bot to game ', gameID);
     model["game"].findOne({'_id': gameID}, function(err, game){
-        model["player"].find({'name': 'Diplobot'}, function(err, bot){
+        model["user"].find({'name': 'Diplobot'}, function(err, docs){
+          if (docs) {
+            var bot = docs[0];
           user_sockets[bot._id].emit('game:join', {'gameId': game._id});
+          }
         });
     });
   });
@@ -673,5 +676,6 @@ var port = process.env.PORT || 3000;
 app.listen(port, function() {
   console.log("Listening on " + port);
 });
+
 
 

@@ -20,6 +20,7 @@ define(['scripts/client/bootstrap.js'], function(){
 
       new PlayerList({game:this.game, target: $(this.el).find('.player-list')});
       new PowerList({game:this.game, target: $(this.el).find('.power-list')})
+      new BotList({game:this.game, target: $(this.el).find('.bot-list')});
 
     },
     goToLobby: function(){
@@ -43,12 +44,12 @@ define(['scripts/client/bootstrap.js'], function(){
       this.game.set({status:"active"})
 
       //generate chatrooms
-      
+
       /*
       _.each(this.game.get('players').permutations(), function(pair){
         this.game.get('chatrooms').create({players: [pair[0].id, pair[1].id]})
       }, this);
-      
+
       */
       this.game.save()
 
@@ -87,6 +88,44 @@ define(['scripts/client/bootstrap.js'], function(){
     }
   });
 
+  var BotList = Backbone.View.extend({
+    template: T['bots_pregame'],
+    events: {
+      "click .power": "selectPower"
+    },
+    initialize: function(options){
+      this.game = options.game;
+
+      options.target.append(this.el);
+
+      this.game.get('players').bind("remove", this.render, this);
+      this.game.get('players').bind("add", this.render, this)
+      this.game.get('players').bind("change", this.render, this)
+
+      this.render();
+    },
+    render: function() {
+      available_powers = _.difference(
+        PLAYERS,
+        this.game.get('players').map(function(player) { return player.get('power'); })
+      );
+
+      data = {powers: available_powers.map(function(p){ return {name: p} })}
+      $(this.el).html(this.template.r(data));
+    },
+    selectPower: function(ev){
+      var power = $(ev.currentTarget).attr('data-power')
+
+      // if power available
+      if (undefined == this.game.get('players').find(function(player){player.get('power') == power})) {
+        // Add bot to the game
+        console.log('Adding bot to ', this.game);
+        window.socket.emit('game:addbot', this.game.id);
+      }
+      this.render();
+    }
+  });
+
   var PowerList = Backbone.View.extend({
     template: T['powers_pregame'],
     events: {
@@ -117,7 +156,7 @@ define(['scripts/client/bootstrap.js'], function(){
     selectPower: function(ev){
       //user_selected, other_selected, selectable
       var power = $(ev.currentTarget).attr('data-power') //('class').split(' ').filter(function(element){return ($.inArray(element,PLAYERS)!=-1)})[0]
-     
+
 
       // if power available
       if(undefined == this.game.get('players').find(function(player){player.get('power') == power})   ){
@@ -142,14 +181,14 @@ define(['scripts/client/bootstrap.js'], function(){
   window.PreGameView = Backbone.View.extend({
     //id: this.id,
     events: {
-      
+
       "click .selectable": "selectPower",
       "click .startGame": "startGame",
-      
+
     },
     initialize: function(options){
-      
-      
+
+
 
       console.log('initializing pregame')
 
@@ -169,8 +208,8 @@ define(['scripts/client/bootstrap.js'], function(){
     render: function(){
 
       console.log('rendering pregame')
-      
-      
+
+
       $(this.el).html(this.template.r({}));
 
       this.playerlist.render(this.game.get('players'));
@@ -231,7 +270,7 @@ define(['scripts/client/bootstrap.js'], function(){
       PLAYERS.forEach(function(power){
         var state = 'selectable';
         //iterate through powers, if power taken by player, assign state
-        if (_.any(players.models, function(player){return player.get('power') == power})) 
+        if (_.any(players.models, function(player){return player.get('power') == power}))
           state='player_selected';
         powerdict.push({name: power, select_state:state})
       });*//*
