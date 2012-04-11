@@ -74,6 +74,7 @@ define(['scripts/client/bootstrap.js'], function(){
       this.render();
     },
     render: function(){
+      console.log('Rendering player list');
       $(this.el).html("");
       this.game.get('players').each(function(player){this.addOne(player); }, this);
     },
@@ -105,6 +106,7 @@ define(['scripts/client/bootstrap.js'], function(){
       this.render();
     },
     render: function() {
+      console.log('Rendering bot list');
       available_powers = _.difference(
         PLAYERS,
         this.game.get('players').map(function(player) { return player.get('power'); }));
@@ -120,9 +122,10 @@ define(['scripts/client/bootstrap.js'], function(){
       if (undefined == this.game.get('players').find(function(player){return player.get('power') == power; })) {
         // Add bot to the game
         console.log('Adding bot as ', power);
-        window.socket.emit('game:addbot', this.game.id, power);
+        window.socket.emit('game:addbot', this.game.id, power, function() {
+          this.game.get('players').trigger('change');
+        });
       }
-      this.render();
     }
   });
 

@@ -10,7 +10,7 @@ var express = require('express')
   , dipresolve = require('./server/lib/dipresolve')
 
 
-var 
+var
     MODEL_PATH  = './server/model/'
   , db_uri      = process.env.MONGOLAB_URI || 'mongodb://localhost/diplomacy-dev';
 
@@ -39,21 +39,21 @@ app.configure('development', function(){
 });
 
 app.configure('production', function(){
-  app.use(express.errorHandler()); 
+  app.use(express.errorHandler());
 });
 
-io.configure("development", function () { 
-  io.set("log level", 1); 
+io.configure("development", function () {
+  io.set("log level", 1);
 });
 
-io.configure("production", function () { 
-  io.set("transports", ["xhr-polling"]); 
-  io.set("polling duration", 10); 
+io.configure("production", function () {
+  io.set("transports", ["xhr-polling"]);
+  io.set("polling duration", 10);
 });
 
-io.configure("test", function () { 
-  io.set("transports", ["xhr-polling"]); 
-  io.set("polling duration", 10); 
+io.configure("test", function () {
+  io.set("transports", ["xhr-polling"]);
+  io.set("polling duration", 10);
 });
 
 app.dynamicHelpers({
@@ -151,7 +151,7 @@ io.sockets.on('connection', function (socket) {
   //   socket.broadcast.emit('chat:users',users);
   // });
 
-  socket.on('game:addbot', function(gameID, power){
+  socket.on('game:addbot', function(gameID, power, callback){
     console.log('Adding bot to game ', gameID);
     model["game"].findOne({'_id': gameID}, function(err, game){
       model["user"].findOne({'name': 'Diplobot'}, function(err, bot){
@@ -162,20 +162,41 @@ io.sockets.on('connection', function (socket) {
   });
 
   socket.on('bot:joingame', function(args) {
-    var player = new model["player"]({
+    /*
+     * args = {
+     *   gameId: game id,
+     *   botId: bot user id,
+     *   power: bot's nationality
+     * }
+     */
+    var botPlayer = new model["player"]({
         user_id: args.botId,
+        name: 'Diplobot',
         country: args.power
-      });
-    player.save(function(err) {
-      console.log("Created player ", player);
+    });
+    botPlayer.save(function(err) {
+      console.log("Created bot player ", botPlayer);
       if (err) {
         console.log("Error creating player:", err);
       } else {
         model["game"].findOne({'_id': args.gameId}, function(err, game) {
-          console.log("Found game ", game);
-          game.players.push(player.id);
+          game.players.push(botPlayer._id);
           game.save(function(err) { console.log("saved game"); });
+          model["user"].findOne({"_id": args.botId}, function(err, botUser) {
+            model["player"].find({"_id": {$in: game.players}}, function(err, players) {
+              _.each(players, function(player) {
+                var user_id = player.user;
+                socket.get('user_id', function(err, data) {
+                  if (user_id in user_sockets) {
+                    if (user_id != args.botId)
+                      user_sockets[user_id].emit('bot:joined', _.extend(args, {botPlayer: botPlayer, botUser: botUser}));
+                  }
+                });
+              });
+            });
+          });
         });
+        user_sockets[args.botId].emit('bot:playerId', {'playerId': botPlayer['_id']});
       }
     });
   });
@@ -193,19 +214,19 @@ io.sockets.on('connection', function (socket) {
         var u = game.units;
         var combined = _.flatten(_.map(data, function(doc){ return doc.orders }),true);
         var provinces_with_orders = _.map(combined, function(order){return order.province});
-        var holds = _.compact(_.map(u,function(unit){ 
+        var holds = _.compact(_.map(u,function(unit){
             if(-1 == _.indexOf(provinces_with_orders, unit.province)){
-              return { 
-                province: unit.province,  
+              return {
+                province: unit.province,
                 utype: unit.utype,
                 owner: unit.owner,
-                order: { to: unit.province, from: unit.province, move: 'h' } 
+                order: { to: unit.province, from: unit.province, move: 'h' }
               }
             }
           })
         );
         var end = _.uniq(holds.concat(combined),false,function(u){ return u.province });
-        
+
         /*console.log("units before resolve")
         for(var x in end)
           if(end[x].owner=="Aus")
@@ -222,7 +243,7 @@ io.sockets.on('connection', function (socket) {
 
         game.units=units;
         game.save();
-        
+
         //console.log("resolve map's Rum")
         //console.log(game.map.Rum)
         //TODO: broadcast updated game state to all clients
@@ -232,7 +253,7 @@ io.sockets.on('connection', function (socket) {
         cb(null,units,supply,game.map);
 
       });
-    
+
     });
 
   });
@@ -302,7 +323,7 @@ io.sockets.on('connection', function (socket) {
         toSpawn=_.flatten(toSpawn,true);
 
         var u = _.flatten(game.units);
-        
+
         /*console.log("units before secondaryResolve")
         for(var x in u)
           if(u[x].owner=="Aus")
@@ -313,7 +334,7 @@ io.sockets.on('connection', function (socket) {
         console.log("retreat")
         console.log(toRetreat)
         console.log("spawn")
-        console.log(toSpawn)  */    
+        console.log(toSpawn)  */
 
         var e = dipresolve.secondaryResolve(u,toDisband,toRetreat,toSpawn,game.map);
         game.map = e.MAP;
@@ -325,7 +346,7 @@ io.sockets.on('connection', function (socket) {
             console.log(end[x]);*/
 
         //Are there still issues that need to be fixed?
-        
+
         //Retreat units that are not retreated?
           //for all units, units.order.move==r
           //delete them
@@ -389,10 +410,10 @@ io.sockets.on('connection', function (socket) {
 
         //informing client that called us
         cb(null,end,game.map);
-        
+
 
       });
-    
+
     });
 
       //console.log(orders)
@@ -404,7 +425,7 @@ io.sockets.on('connection', function (socket) {
         var toResolve;
         for(var x in u)
         {
-          
+
         }
 
         //dipresolve(toResolve);
@@ -413,7 +434,7 @@ io.sockets.on('connection', function (socket) {
 
 
     //dipresolve that gameID
-    
+
     //var blah = dipresolve(null);//fix
 
     //broadcast game state to all relevant clients
@@ -429,7 +450,7 @@ io.sockets.on('connection', function (socket) {
       user_sockets[doc._id] = socket;
       socket.set('user_id', doc._id, function(){
         if (cb !== null) {
-        cb(null,doc);
+          cb(null,doc);
         } else {
           socket.emit('login', doc);
         }
@@ -449,7 +470,7 @@ io.sockets.on('connection', function (socket) {
           // return error
           // TODO
         }
-      } 
+      }
       // else (username does not exist)
       else {
         // create user
@@ -461,20 +482,24 @@ io.sockets.on('connection', function (socket) {
       }
 
     });
-    
+
   });
 
 
   socket.on('db', function(args, callback){
+    console.log('DB request', args);
+    if (args['collection'] === 'player') {
+      console.log('DB updated orders', args['data']['orders']);
+    }
 
-    /* 
+    /*
       args = {
           action: "",
           collection: "",
           data: {}
       }
     */
-    
+
     //load schema based on collection specified
 
     //TODO:
@@ -512,10 +537,10 @@ io.sockets.on('connection', function (socket) {
           _model.findOne({'_id':args.data}, function(err, docs){callback(err,docs);});
         }
         break;
-      
+
       case 'PUT':
         break;
-      
+
       case 'POST':
         if (args.data){
           socket.get('user_id', function(err, user_id){
@@ -531,8 +556,8 @@ io.sockets.on('connection', function (socket) {
 
             socket.broadcast.emit('update:newgame')
 
-            // socket.broadcast.emit('update:newgame', args) 
-            
+            // socket.broadcast.emit('update:newgame', args)
+
             // args["game_id"] = args.data._id
             // args["user_map"] = {}
             // if (args.collection == 'game') {
@@ -608,7 +633,7 @@ _id same id
 
                     //Broadcast update to other players in game
                     // console.log(args.collection, id, args.data)
-                    
+
                       // console.log(args.data)
                 var player_list = null
                 if (args.collection == 'player') player_id = mongoose.Types.ObjectId.toString(arg_id)
@@ -631,6 +656,9 @@ _id same id
                       console.log(key)
                       if (_.indexOf(private_list, key) > -1) delete args.data[key]
                     }
+                    model['game'].findOne({'_id': arg_id}, function(err, game) {
+                        args.data['units'] = game.get('units');
+                    });
                   }
                   model['player'].find({'_id':{$in:game.players}}, function(err, player_list){
 
@@ -660,12 +688,12 @@ _id same id
                   });
                 });
               });
-            } 
+            }
             else console.log('no doc to update');
           });
         }
         break;
-      
+
       case 'DELETE':
         if (args.data){
           console.log(args);
@@ -673,7 +701,7 @@ _id same id
         }
         break;
     }
-    
+
   });
 
   socket.on('disconnect', function(){
@@ -684,7 +712,7 @@ _id same id
 
 });
 
-  
+
 
 // RUN
 
@@ -693,7 +721,3 @@ var port = process.env.PORT || 3000;
 app.listen(port, function() {
   console.log("Listening on " + port);
 });
-
-
-
-

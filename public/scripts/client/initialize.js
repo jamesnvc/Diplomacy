@@ -7,13 +7,21 @@ define(['scripts/client/bootstrap.js'], function(){
       'max reconnection attempts':10
     };
 
-  
+
     window.socket = io.connect('/', socket_defaults);
 
-
+    socket.on('bot:joined', function(args, cb) {
+      console.log('Bot joined with args', args);
+      game = Games.find(function(game) {
+          return (game.get('_id') === args.gameId);
+      });
+      var bot_user = new User(args.botUser);
+      game.get('players').create({_id: args.botPlayer._id, user: bot_user, power: args.power});
+      console.log('game', game, 'bot user', bot_user);
+    });
 
     socket.on('update:force', function(args, cb){
-    /* 
+    /*
          args = {
           collection: "",
           data: {},
@@ -34,7 +42,7 @@ define(['scripts/client/bootstrap.js'], function(){
       if (!_.isUndefined(game)){
         //LAZY WAY WOO
         //Existing object
-        
+
         if (args.collection == 'game') {
           model = game;
 
@@ -53,10 +61,12 @@ define(['scripts/client/bootstrap.js'], function(){
             var new_user = new User(args.user_map[player_id])
             model.get('players').create({_id:player_id, power:'Aus', user:new_user})
           }
-        
-        } else model = game.get(args.collection + 's').find(function(sub){
-          return (sub.get('_id') == args.data["_id"])
-        }); //need to pluralize
+
+        } else {
+          model = game.get(args.collection + 's').find(function(sub){
+              return (sub.get('_id') == args.data["_id"])
+            }); //need to pluralize
+        }
 
         //don't update _id
         delete args.data["_id"];
@@ -71,7 +81,7 @@ define(['scripts/client/bootstrap.js'], function(){
           console.log('setting:', key, '|', model.get(key), 'to:', args.data[key])
 
           model.set(set_hash);
-          
+
         }
 
       }
@@ -89,7 +99,7 @@ define(['scripts/client/bootstrap.js'], function(){
     Splash = new SplashView();
 
 
-    
+
   }
 
 
